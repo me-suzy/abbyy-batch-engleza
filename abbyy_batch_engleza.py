@@ -288,6 +288,10 @@ def launch_finereader() -> subprocess.Popen:
 
 
 def close_finereader(proc: subprocess.Popen | None, force_kill: bool) -> None:
+    log("Verific daca exista dialogul Conversion si apas Close daca este prezent.")
+    if close_conversion_dialog():
+        time.sleep(5)
+
     log("Inchid FineReader cu Ctrl+Q.")
     focus_finereader("Ctrl+Q", timeout=10)
     pyautogui.hotkey("ctrl", "q")
@@ -296,19 +300,8 @@ def close_finereader(proc: subprocess.Popen | None, force_kill: bool) -> None:
     time.sleep(7)
 
     still_running = proc is not None and proc.poll() is None
-    if still_running:
-        log("FineReader pare inca deschis; incerc Alt+F, Sageata sus, Enter.")
-        focus_finereader("Alt+F Exit", timeout=10)
-        pyautogui.hotkey("alt", "f")
-        pyautogui.press("up")
-        pyautogui.press("enter")
-        time.sleep(3)
-        answer_no_to_save_changes()
-        time.sleep(7)
-
-    still_running = proc is not None and proc.poll() is None
     if still_running and force_kill:
-        log("FineReader inca ruleaza; folosesc taskkill pentru a continua lotul.")
+        log("FineReader inca ruleaza dupa Ctrl+Q; folosesc taskkill pentru a continua lotul.")
         force_kill_finereader()
         time.sleep(2)
 
@@ -361,9 +354,6 @@ def close_conversion_dialog() -> bool:
         time.sleep(1)
         return True
 
-    focus_finereader("Enter pe Conversion Close", timeout=10)
-    pyautogui.press("enter")
-    time.sleep(1)
     return False
 
 
@@ -564,6 +554,8 @@ def process_pdf(pdf: Path, args: argparse.Namespace) -> bool:
         time.sleep(3)
 
         if output_docx.exists() and output_docx.stat().st_size > 0:
+            close_conversion_dialog()
+            time.sleep(5)
             append_unique(DONE_LOG, str(pdf))
             move_converted_pdf(pdf)
             if conversion_finished:
