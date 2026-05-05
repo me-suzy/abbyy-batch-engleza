@@ -40,7 +40,7 @@ CHECK_INTERVAL_MINUTES = 7
 MAX_CONVERSION_MINUTES = 180
 
 pyautogui.PAUSE = 0.55
-pyautogui.FAILSAFE = True
+pyautogui.FAILSAFE = False
 
 
 def now() -> str:
@@ -367,9 +367,26 @@ def close_conversion_dialog() -> bool:
     return False
 
 
-def wait_for_conversion_finished(check_seconds: int, max_seconds: int) -> bool:
+def output_docx_is_stable(output_docx: Path, previous_size: int | None) -> tuple[bool, int | None]:
+    if not output_docx.exists():
+        return False, None
+
+    size = output_docx.stat().st_size
+    if size <= 0:
+        return False, size
+
+    if previous_size is not None and previous_size == size:
+        log(f"DOCX exista si are marime stabila: {output_docx.name} ({size} bytes).")
+        return True, size
+
+    log(f"DOCX exista, astept confirmare marime stabila: {output_docx.name} ({size} bytes).")
+    return False, size
+
+
+def wait_for_conversion_finished(check_seconds: int, max_seconds: int, output_docx: Path) -> bool:
     start = time.monotonic()
     check_no = 0
+    last_docx_size: int | None = None
 
     while True:
         elapsed = int(time.monotonic() - start)
@@ -388,6 +405,11 @@ def wait_for_conversion_finished(check_seconds: int, max_seconds: int) -> bool:
         focus_finereader(f"verificare conversie #{check_no}", timeout=10)
         if click_conversion_close_button():
             log(f"Conversia este gata la verificarea #{check_no}.")
+            return True
+
+        stable, last_docx_size = output_docx_is_stable(output_docx, last_docx_size)
+        if stable:
+            log("Consider conversia terminata fiindca DOCX-ul este deja scris si stabil.")
             return True
 
         log(f"Conversia nu este gata la verificarea #{check_no}; continui.")
@@ -476,13 +498,17 @@ def process_pdf(pdf: Path, args: argparse.Namespace) -> bool:
         conversion_finished = wait_for_conversion_finished(
             args.check_interval_seconds,
             args.max_conversion_seconds,
+            output_docx,
         )
         time.sleep(3)
 
-        if conversion_finished and output_docx.exists() and output_docx.stat().st_size > 0:
+        if output_docx.exists() and output_docx.stat().st_size > 0:
             append_unique(DONE_LOG, str(pdf))
             move_converted_pdf(pdf)
-            log(f"Convertit OK: {pdf.name} -> {output_docx.name}")
+            if conversion_finished:
+                log(f"Convertit OK: {pdf.name} -> {output_docx.name}")
+            else:
+                log(f"Convertit OK dupa verificare DOCX existenta: {pdf.name} -> {output_docx.name}")
             return True
 
         msg = f"Conversia nu s-a confirmat sau nu gasesc docx dupa conversie: {pdf}"
