@@ -434,16 +434,83 @@ def move_converted_pdf(pdf: Path) -> None:
         log(f"Nu pot muta inca PDF-ul convertit {pdf.name}; probabil este folosit de ABBYY: {exc}")
 
 
-def save_as_word_via_menu(output_docx: Path) -> None:
-    # User's menu path: Alt+F, down x3, right, down x3, enter.
-    focus_finereader("meniul Save As", timeout=10)
+def click_menu_item_by_text(text: str, timeout: int = 5) -> bool:
+    expected = text.replace("&", "").strip().lower()
+    end = time.monotonic() + timeout
+
+    while time.monotonic() < end:
+        try:
+            items = Desktop(backend="uia").descendants(control_type="MenuItem")
+            for item in items:
+                label = (item.window_text() or "").replace("&", "").strip().lower()
+                if label == expected:
+                    item.click_input()
+                    time.sleep(0.5)
+                    return True
+        except Exception:
+            time.sleep(0.3)
+
+        time.sleep(0.3)
+
+    return False
+
+
+def choose_microsoft_word_export() -> bool:
+    focus_finereader("alegere Microsoft Word", timeout=10)
+    width, height = pyautogui.size()
+    pyautogui.moveTo(width - 20, height // 2, duration=0.1)
     pyautogui.hotkey("alt", "f")
-    pyautogui.press("down", presses=3, interval=0.15)
+    time.sleep(0.6)
+
+    if click_menu_item_by_text("Convert To", timeout=3):
+        if click_menu_item_by_text("Microsoft Word", timeout=3):
+            return True
+
+    # Fallback for the menu layout shown by ABBYY:
+    # File -> Convert To -> Microsoft Word. This is intentionally not the old
+    # down-3/down-3 path, which could land on Scan To -> Image File.
+    log("Nu am putut selecta Microsoft Word prin UIA; folosesc fallback precis din tastatura.")
+    focus_finereader("fallback Microsoft Word", timeout=10)
+    pyautogui.hotkey("alt", "f")
+    time.sleep(0.3)
+    pyautogui.press("down", presses=2, interval=0.12)
     pyautogui.press("right")
-    pyautogui.press("down", presses=3, interval=0.15)
+    pyautogui.press("down", presses=1, interval=0.12)
     pyautogui.press("enter")
+    return True
+
+
+def save_dialog_is_word(output_docx: Path) -> bool:
+    if not activate_window_by_title("Save document as", timeout=8):
+        log("Nu gasesc dialogul Save document as dupa alegerea Microsoft Word.")
+        return False
+
+    try:
+        dlg = Desktop(backend="uia").window(title_re=r".*Save document as.*")
+        dlg.wait("visible", timeout=3)
+        text = " ".join(
+            child.window_text()
+            for child in dlg.descendants()
+            if child.window_text()
+        ).lower()
+        if "microsoft word document" in text and ".docx" in text:
+            return True
+        log(f"Dialogul Save As nu pare setat pe Word/docx. Text detectat: {text[:500]}")
+        return False
+    except Exception as exc:
+        log(f"Nu pot verifica dialogul Save As prin UIA: {exc}")
+        return False
+
+
+def save_as_word_via_menu(output_docx: Path) -> None:
+    if not choose_microsoft_word_export():
+        raise RuntimeError("Nu pot selecta exportul Microsoft Word din meniul ABBYY.")
 
     time.sleep(SAVE_DIALOG_WAIT_SECONDS)
+
+    if not save_dialog_is_word(output_docx):
+        pyautogui.press("esc")
+        raise RuntimeError("Dialogul Save As nu este setat pe Microsoft Word Document (*.docx).")
 
     # FineReader already fills the correct .docx filename in D:\ENGLEZA.
     # Press Enter only, which activates the Save button.
