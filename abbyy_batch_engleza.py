@@ -498,20 +498,10 @@ def save_dialog_is_word(output_docx: Path) -> bool:
 
 
 def save_as_word_via_menu(output_docx: Path) -> None:
-    for attempt in range(1, 3):
-        if not choose_microsoft_word_export():
-            raise RuntimeError("Nu pot selecta exportul Microsoft Word din meniul ABBYY.")
+    if not choose_microsoft_word_export():
+        raise RuntimeError("Nu pot selecta exportul Microsoft Word din meniul ABBYY.")
 
-        time.sleep(SAVE_DIALOG_WAIT_SECONDS)
-
-        if save_dialog_is_word(output_docx):
-            break
-
-        log(f"Save As nu este Word/docx la incercarea {attempt}; inchid dialogul si reincerc.")
-        pyautogui.press("esc")
-        time.sleep(1)
-    else:
-        raise RuntimeError("Dialogul Save As nu este setat pe Microsoft Word Document (*.docx).")
+    time.sleep(SAVE_DIALOG_WAIT_SECONDS)
 
     # FineReader already fills the correct .docx filename in D:\ENGLEZA.
     # Press Enter only, which activates the Save button.
