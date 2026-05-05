@@ -456,25 +456,21 @@ def click_menu_item_by_text(text: str, timeout: int = 5) -> bool:
 
 
 def choose_microsoft_word_export() -> bool:
+    # This is the path that proved reliable in the long batch:
+    # File -> Save As -> Microsoft Word Document.
+    # Keep the mouse far away from the menu so hover cannot move the submenu choice.
     focus_finereader("alegere Microsoft Word", timeout=10)
     width, height = pyautogui.size()
     pyautogui.moveTo(width - 10, height - 10, duration=0.1)
     pyautogui.press("esc")
     pyautogui.press("esc")
     pyautogui.hotkey("alt", "f")
-    time.sleep(0.5)
-    pyautogui.press("home")
-    time.sleep(0.1)
-
-    # File -> Convert To -> Microsoft Word.
-    # Home makes the start deterministic; two Down presses land on Convert To.
-    # This avoids the previous down-3 path, which could land on Scan To.
-    pyautogui.press("down", presses=2, interval=0.12)
+    time.sleep(0.4)
+    pyautogui.press("down", presses=3, interval=0.15)
     pyautogui.moveTo(width - 10, height - 10, duration=0.1)
     pyautogui.press("right")
-    time.sleep(0.2)
-    pyautogui.press("home")
-    pyautogui.press("down", presses=1, interval=0.12)
+    time.sleep(0.3)
+    pyautogui.press("down", presses=3, interval=0.15)
     pyautogui.press("enter")
     return True
 
@@ -502,13 +498,19 @@ def save_dialog_is_word(output_docx: Path) -> bool:
 
 
 def save_as_word_via_menu(output_docx: Path) -> None:
-    if not choose_microsoft_word_export():
-        raise RuntimeError("Nu pot selecta exportul Microsoft Word din meniul ABBYY.")
+    for attempt in range(1, 3):
+        if not choose_microsoft_word_export():
+            raise RuntimeError("Nu pot selecta exportul Microsoft Word din meniul ABBYY.")
 
-    time.sleep(SAVE_DIALOG_WAIT_SECONDS)
+        time.sleep(SAVE_DIALOG_WAIT_SECONDS)
 
-    if not save_dialog_is_word(output_docx):
+        if save_dialog_is_word(output_docx):
+            break
+
+        log(f"Save As nu este Word/docx la incercarea {attempt}; inchid dialogul si reincerc.")
         pyautogui.press("esc")
+        time.sleep(1)
+    else:
         raise RuntimeError("Dialogul Save As nu este setat pe Microsoft Word Document (*.docx).")
 
     # FineReader already fills the correct .docx filename in D:\ENGLEZA.
