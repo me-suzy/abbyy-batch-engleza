@@ -458,23 +458,22 @@ def click_menu_item_by_text(text: str, timeout: int = 5) -> bool:
 def choose_microsoft_word_export() -> bool:
     focus_finereader("alegere Microsoft Word", timeout=10)
     width, height = pyautogui.size()
-    pyautogui.moveTo(width - 20, height // 2, duration=0.1)
+    pyautogui.moveTo(width - 10, height - 10, duration=0.1)
+    pyautogui.press("esc")
+    pyautogui.press("esc")
     pyautogui.hotkey("alt", "f")
-    time.sleep(0.6)
+    time.sleep(0.5)
+    pyautogui.press("home")
+    time.sleep(0.1)
 
-    if click_menu_item_by_text("Convert To", timeout=3):
-        if click_menu_item_by_text("Microsoft Word", timeout=3):
-            return True
-
-    # Fallback for the menu layout shown by ABBYY:
-    # File -> Convert To -> Microsoft Word. This is intentionally not the old
-    # down-3/down-3 path, which could land on Scan To -> Image File.
-    log("Nu am putut selecta Microsoft Word prin UIA; folosesc fallback precis din tastatura.")
-    focus_finereader("fallback Microsoft Word", timeout=10)
-    pyautogui.hotkey("alt", "f")
-    time.sleep(0.3)
+    # File -> Convert To -> Microsoft Word.
+    # Home makes the start deterministic; two Down presses land on Convert To.
+    # This avoids the previous down-3 path, which could land on Scan To.
     pyautogui.press("down", presses=2, interval=0.12)
+    pyautogui.moveTo(width - 10, height - 10, duration=0.1)
     pyautogui.press("right")
+    time.sleep(0.2)
+    pyautogui.press("home")
     pyautogui.press("down", presses=1, interval=0.12)
     pyautogui.press("enter")
     return True
