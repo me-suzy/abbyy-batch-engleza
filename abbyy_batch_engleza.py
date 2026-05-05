@@ -36,7 +36,7 @@ OPEN_DIALOG_WAIT_SECONDS = 2
 FILE_LOAD_WAIT_SECONDS = 20
 SAVE_DIALOG_WAIT_SECONDS = 4
 AFTER_SAVE_WAIT_SECONDS = 3
-CHECK_INTERVAL_MINUTES = 7
+CHECK_INTERVAL_MINUTES = 3.5
 MAX_CONVERSION_MINUTES = 180
 
 pyautogui.PAUSE = 0.55
@@ -427,8 +427,11 @@ def move_converted_pdf(pdf: Path) -> None:
         stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         target = CONVERTED_PDF_DIR / f"{stem}_{stamp}{suffix}"
 
-    pdf.replace(target)
-    log(f"Mut PDF convertit: {pdf.name} -> {target}")
+    try:
+        pdf.replace(target)
+        log(f"Mut PDF convertit: {pdf.name} -> {target}")
+    except OSError as exc:
+        log(f"Nu pot muta inca PDF-ul convertit {pdf.name}; probabil este folosit de ABBYY: {exc}")
 
 
 def save_as_word_via_menu(output_docx: Path) -> None:
@@ -568,7 +571,7 @@ def parse_args() -> argparse.Namespace:
         "--check-minutes",
         type=float,
         default=CHECK_INTERVAL_MINUTES,
-        help="La cate minute verifica daca ABBYY a terminat conversia. Implicit: 7.",
+        help="La cate minute verifica daca ABBYY a terminat conversia. Implicit: 3.5.",
     )
     parser.add_argument(
         "--max-conversion-minutes",
@@ -579,8 +582,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--after-close-minutes",
         type=float,
-        default=4,
-        help="Cate minute asteapta dupa inchiderea ABBYY. Implicit: 4.",
+        default=3,
+        help="Cate minute asteapta dupa inchiderea ABBYY. Implicit: 3.",
     )
     parser.add_argument(
         "--startup-wait",
